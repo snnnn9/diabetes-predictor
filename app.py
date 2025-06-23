@@ -125,6 +125,7 @@ def train_model(X_train, y_train, X_test, y_test):
 def main():
     st.title("🩺 Diabetes Predictor")
     st.markdown("### Predict diabetes risk using machine learning")
+    st.markdown("*Enhanced AI model with improved accuracy - Created by Rexzea*")
     
     # Sidebar for file upload and user inputs
     st.sidebar.header("📊 Data & Prediction")
@@ -308,6 +309,14 @@ def main():
     st.markdown(
         "**Note:** This is a demonstration app for educational purposes. "
         "Always consult healthcare professionals for medical advice."
+    )
+    
+    # Watermark/Creator
+    st.markdown(
+        "<div style='text-align: center; color: #888; font-size: 14px; margin-top: 20px;'>"
+        "Created by <strong>Rexzea</strong> 🚀"
+        "</div>", 
+        unsafe_allow_html=True
     )
 
 if __name__ == "__main__":
