@@ -17,46 +17,47 @@ st.set_page_config(
     layout="wide"
 )
 
-# Define the improved neural network model
+# Define the enhanced neural network model
 class DiabetesNet(nn.Module):
     def __init__(self, input_size=8):
         super(DiabetesNet, self).__init__()
-        # Deeper and wider network for better learning
+        # Deeper architecture with batch normalization
         self.fc1 = nn.Linear(input_size, 64)
+        self.bn1 = nn.BatchNorm1d(64)
         self.fc2 = nn.Linear(64, 32)
+        self.bn2 = nn.BatchNorm1d(32)
         self.fc3 = nn.Linear(32, 16)
+        self.bn3 = nn.BatchNorm1d(16)
         self.fc4 = nn.Linear(16, 8)
         self.fc5 = nn.Linear(8, 1)
         
         self.relu = nn.ReLU()
         self.leaky_relu = nn.LeakyReLU(0.1)
-        self.dropout1 = nn.Dropout(0.3)
-        self.dropout2 = nn.Dropout(0.2)
-        self.batch_norm1 = nn.BatchNorm1d(64)
-        self.batch_norm2 = nn.BatchNorm1d(32)
+        self.dropout = nn.Dropout(0.3)
         self.sigmoid = nn.Sigmoid()
     
     def forward(self, x):
         # First layer with batch norm
         x = self.fc1(x)
-        x = self.batch_norm1(x)
+        x = self.bn1(x)
         x = self.leaky_relu(x)
-        x = self.dropout1(x)
+        x = self.dropout(x)
         
         # Second layer with batch norm
         x = self.fc2(x)
-        x = self.batch_norm2(x)
+        x = self.bn2(x)
         x = self.leaky_relu(x)
-        x = self.dropout2(x)
+        x = self.dropout(x)
         
-        # Third layer
-        x = self.leaky_relu(self.fc3(x))
-        x = self.dropout2(x)
+        # Third layer with batch norm
+        x = self.fc3(x)
+        x = self.bn3(x)
+        x = self.leaky_relu(x)
+        x = self.dropout(x)
         
-        # Fourth layer
-        x = self.leaky_relu(self.fc4(x))
-        
-        # Output layer
+        # Final layers
+        x = self.relu(self.fc4(x))
+        x = self.dropout(x)
         x = self.sigmoid(self.fc5(x))
         return x
 
@@ -70,77 +71,89 @@ def load_and_preprocess_data(uploaded_file):
         np.random.seed(42)
         n_samples = 800
         
-        # Create realistic diabetes patterns
-        # 65% non-diabetic, 35% diabetic (closer to real distribution)
-        outcomes = np.random.choice([0, 1], n_samples, p=[0.65, 0.35])
+        # Create two groups: diabetic and non-diabetic with realistic distributions
+        n_diabetic = int(n_samples * 0.35)  # 35% diabetic
+        n_non_diabetic = n_samples - n_diabetic
         
-        df_list = []
-        for outcome in outcomes:
-            if outcome == 1:  # Diabetic - higher risk values
-                sample = {
-                    'Pregnancies': np.random.poisson(3),
-                    'Glucose': np.random.normal(145, 25),  # Higher glucose
-                    'BloodPressure': np.random.normal(75, 12),
-                    'SkinThickness': np.random.normal(28, 8),
-                    'Insulin': np.random.normal(150, 60),  # Higher insulin
-                    'BMI': np.random.normal(32, 6),  # Higher BMI
-                    'DiabetesPedigreeFunction': np.random.uniform(0.3, 1.8),
-                    'Age': np.random.normal(45, 15),  # Older age
-                    'Outcome': outcome
-                }
-            else:  # Non-diabetic - lower risk values
-                sample = {
-                    'Pregnancies': np.random.poisson(2),
-                    'Glucose': np.random.normal(105, 20),  # Normal glucose
-                    'BloodPressure': np.random.normal(68, 10),
-                    'SkinThickness': np.random.normal(22, 6),
-                    'Insulin': np.random.normal(80, 40),  # Normal insulin
-                    'BMI': np.random.normal(26, 4),  # Normal BMI
-                    'DiabetesPedigreeFunction': np.random.uniform(0.1, 0.8),
-                    'Age': np.random.normal(35, 12),  # Younger age
-                    'Outcome': outcome
-                }
-            df_list.append(sample)
+        # Non-diabetic group (healthier values)
+        non_diabetic_data = {
+            'Pregnancies': np.random.poisson(2, n_non_diabetic),
+            'Glucose': np.random.normal(95, 15, n_non_diabetic),  # Lower glucose
+            'BloodPressure': np.random.normal(68, 10, n_non_diabetic),
+            'SkinThickness': np.random.normal(20, 8, n_non_diabetic),
+            'Insulin': np.random.normal(85, 30, n_non_diabetic),
+            'BMI': np.random.normal(25, 4, n_non_diabetic),  # Lower BMI
+            'DiabetesPedigreeFunction': np.random.gamma(2, 0.2, n_non_diabetic),
+            'Age': np.random.gamma(3, 10, n_non_diabetic) + 21,
+            'Outcome': np.zeros(n_non_diabetic)
+        }
         
-        df = pd.DataFrame(df_list)
+        # Diabetic group (higher risk values)
+        diabetic_data = {
+            'Pregnancies': np.random.poisson(4, n_diabetic),  # More pregnancies
+            'Glucose': np.random.normal(145, 25, n_diabetic),  # Higher glucose
+            'BloodPressure': np.random.normal(78, 12, n_diabetic),
+            'SkinThickness': np.random.normal(28, 10, n_diabetic),
+            'Insulin': np.random.normal(150, 60, n_diabetic),  # Higher insulin
+            'BMI': np.random.normal(33, 6, n_diabetic),  # Higher BMI
+            'DiabetesPedigreeFunction': np.random.gamma(3, 0.3, n_diabetic),
+            'Age': np.random.gamma(4, 12, n_diabetic) + 30,  # Older age
+            'Outcome': np.ones(n_diabetic)
+        }
         
-        # Ensure realistic ranges
-        df['Pregnancies'] = np.clip(df['Pregnancies'], 0, 15)
-        df['Glucose'] = np.clip(df['Glucose'], 50, 250)
-        df['BloodPressure'] = np.clip(df['BloodPressure'], 40, 130)
-        df['SkinThickness'] = np.clip(df['SkinThickness'], 5, 60)
-        df['Insulin'] = np.clip(df['Insulin'], 10, 400)
-        df['BMI'] = np.clip(df['BMI'], 15, 55)
-        df['Age'] = np.clip(df['Age'], 18, 85)
+        # Combine and shuffle
+        df_non_diabetic = pd.DataFrame(non_diabetic_data)
+        df_diabetic = pd.DataFrame(diabetic_data)
+        df = pd.concat([df_non_diabetic, df_diabetic], ignore_index=True)
+        df = df.sample(frac=1, random_state=42).reset_index(drop=True)
+        
+        # Ensure realistic bounds
+        df['Pregnancies'] = np.clip(df['Pregnancies'], 0, 17)
+        df['Glucose'] = np.clip(df['Glucose'], 44, 199)
+        df['BloodPressure'] = np.clip(df['BloodPressure'], 24, 122)
+        df['SkinThickness'] = np.clip(df['SkinThickness'], 7, 99)
+        df['Insulin'] = np.clip(df['Insulin'], 14, 846)
+        df['BMI'] = np.clip(df['BMI'], 18.2, 67.1)
+        df['DiabetesPedigreeFunction'] = np.clip(df['DiabetesPedigreeFunction'], 0.078, 2.42)
+        df['Age'] = np.clip(df['Age'], 21, 81).astype(int)
     
     return df
 
 @st.cache_resource
 def train_model(X_train, y_train, X_test, y_test):
-    """Train the improved PyTorch model"""
+    """Train the enhanced PyTorch model"""
     # Convert to tensors
     X_train_tensor = torch.FloatTensor(X_train)
     y_train_tensor = torch.FloatTensor(y_train).view(-1, 1)
     X_test_tensor = torch.FloatTensor(X_test)
     y_test_tensor = torch.FloatTensor(y_test).view(-1, 1)
     
-    # Initialize improved model
+    # Initialize enhanced model
     model = DiabetesNet()
     
     # Use weighted loss to handle class imbalance
-    pos_weight = torch.tensor([len(y_train) / (2 * sum(y_train))])
+    pos_weight = torch.tensor([len(y_train) / (2 * np.sum(y_train))])
     criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
     
-    # Use different optimizers with scheduling
-    optimizer = optim.AdamW(model.parameters(), lr=0.001, weight_decay=0.01)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=20)
+    # Use different learning rates for different layers
+    optimizer = optim.AdamW([
+        {'params': model.fc1.parameters(), 'lr': 0.001},
+        {'params': model.fc2.parameters(), 'lr': 0.0008},
+        {'params': model.fc3.parameters(), 'lr': 0.0006},
+        {'params': model.fc4.parameters(), 'lr': 0.0004},
+        {'params': model.fc5.parameters(), 'lr': 0.0002},
+    ], weight_decay=1e-4)
     
-    # Training loop with more epochs
-    epochs = 300
+    # Learning rate scheduler
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=10, factor=0.5)
+    
+    # Training loop with early stopping
+    epochs = 200
     train_losses = []
     val_losses = []
-    best_loss = float('inf')
+    best_val_loss = float('inf')
     patience_counter = 0
+    early_stop_patience = 20
     
     progress_bar = st.progress(0)
     status_text = st.empty()
@@ -150,51 +163,54 @@ def train_model(X_train, y_train, X_test, y_test):
         model.train()
         optimizer.zero_grad()
         
-        # Forward pass - remove sigmoid from model output for BCEWithLogitsLoss
+        # Forward pass (remove sigmoid from model output for BCEWithLogitsLoss)
         outputs = model(X_train_tensor)
-        # Remove sigmoid and use raw logits
-        raw_outputs = torch.log(outputs / (1 - outputs + 1e-8))  # Convert sigmoid to logits
-        loss = criterion(raw_outputs, y_train_tensor)
+        # Apply sigmoid manually for loss calculation
+        outputs_sigmoid = torch.sigmoid(outputs)
+        loss = criterion(outputs, y_train_tensor)
         
         # Backward pass
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)  # Gradient clipping
-        optimizer.step()
         
-        train_losses.append(loss.item())
+        # Gradient clipping
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        
+        optimizer.step()
         
         # Validation phase
         model.eval()
         with torch.no_grad():
             val_outputs = model(X_test_tensor)
-            val_raw_outputs = torch.log(val_outputs / (1 - val_outputs + 1e-8))
-            val_loss = criterion(val_raw_outputs, y_test_tensor)
-            val_losses.append(val_loss.item())
+            val_outputs_sigmoid = torch.sigmoid(val_outputs)
+            val_loss = criterion(val_outputs, y_test_tensor)
+        
+        train_losses.append(loss.item())
+        val_losses.append(val_loss.item())
         
         # Learning rate scheduling
         scheduler.step(val_loss)
         
         # Early stopping
-        if val_loss < best_loss:
-            best_loss = val_loss
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
             patience_counter = 0
         else:
             patience_counter += 1
             
-        if patience_counter >= 50:  # Early stopping
+        if patience_counter >= early_stop_patience:
             st.info(f"Early stopping at epoch {epoch+1}")
             break
         
         # Update progress
         progress = (epoch + 1) / epochs
         progress_bar.progress(progress)
-        status_text.text(f'Training... Epoch {epoch+1}/{epochs}, Loss: {loss.item():.4f}, Val Loss: {val_loss.item():.4f}')
+        status_text.text(f'Training... Epoch {epoch+1}/{epochs}, Train Loss: {loss.item():.4f}, Val Loss: {val_loss.item():.4f}')
     
-    # Final evaluation
+    # Final evaluation with proper sigmoid
     model.eval()
     with torch.no_grad():
-        train_pred = model(X_train_tensor)
-        test_pred = model(X_test_tensor)
+        train_pred = torch.sigmoid(model(X_train_tensor))
+        test_pred = torch.sigmoid(model(X_test_tensor))
         
         train_pred_binary = (train_pred > 0.5).float()
         test_pred_binary = (test_pred > 0.5).float()
@@ -269,8 +285,8 @@ def main():
     if st.button("🚀 Train Model", type="primary"):
         st.subheader("🤖 Model Training")
         
-        with st.spinner("Training neural network..."):
-            model, train_losses, train_acc, test_acc = train_model(
+        with st.spinner("Training enhanced neural network..."):
+            model, train_losses, val_losses, train_acc, test_acc = train_model(
                 X_train_scaled, y_train, X_test_scaled, y_test
             )
         
@@ -289,7 +305,7 @@ def main():
         with col3:
             st.metric("Final Loss", f"{train_losses[-1]:.4f}")
         
-        # Plot training loss
+        # Plot training and validation loss
         fig = go.Figure()
         fig.add_trace(go.Scatter(
             x=list(range(len(train_losses))),
@@ -298,12 +314,19 @@ def main():
             name='Training Loss',
             line=dict(color='#1f77b4')
         ))
+        fig.add_trace(go.Scatter(
+            x=list(range(len(val_losses))),
+            y=val_losses,
+            mode='lines',
+            name='Validation Loss',
+            line=dict(color='#ff7f0e')
+        ))
         fig.update_layout(
-            title="Training Loss Over Time",
+            title="Training & Validation Loss Over Time",
             xaxis_title="Epoch",
             yaxis_title="Loss",
-            showlegend=False
-        )
+            showlegend=True
+        ))
         st.plotly_chart(fig, use_container_width=True)
         
         st.success("✅ Model trained successfully!")
@@ -331,13 +354,32 @@ def main():
             
             # Scale input data
             input_scaled = st.session_state.scaler.transform(input_data)
+            # Make prediction with proper sigmoid
             input_tensor = torch.FloatTensor(input_scaled)
             
             # Make prediction
             st.session_state.model.eval()
             with torch.no_grad():
-                prediction = st.session_state.model(input_tensor)
-                probability = prediction.item()
+                raw_output = st.session_state.model(input_tensor)
+                probability = torch.sigmoid(raw_output).item()  # Apply sigmoid manually
+            
+            # Enhanced risk assessment with multiple thresholds
+            if probability > 0.7:
+                risk_level = "🔴 **VERY HIGH DIABETES RISK**"
+                risk_color = "error"
+                risk_advice = "⚠️ **Immediate medical consultation recommended!**"
+            elif probability > 0.5:
+                risk_level = "🟠 **HIGH DIABETES RISK**"
+                risk_color = "warning"  
+                risk_advice = "⚠️ **Please consult with a healthcare provider soon.**"
+            elif probability > 0.3:
+                risk_level = "🟡 **MODERATE DIABETES RISK**"
+                risk_color = "info"
+                risk_advice = "💡 **Consider lifestyle improvements and regular check-ups.**"
+            else:
+                risk_level = "🟢 **LOW DIABETES RISK**"
+                risk_color = "success"
+                risk_advice = "✅ **Maintain healthy lifestyle habits.**"
             
             # Display prediction
             st.subheader("🎯 Prediction Results")
@@ -345,15 +387,20 @@ def main():
             col1, col2 = st.columns(2)
             
             with col1:
-                if probability > 0.5:
-                    st.error(f"⚠️ **High Diabetes Risk**")
-                    st.write(f"Probability: **{probability:.1%}**")
+                if risk_color == "error":
+                    st.error(risk_level)
+                elif risk_color == "warning":
+                    st.warning(risk_level)
+                elif risk_color == "info":
+                    st.info(risk_level)
                 else:
-                    st.success(f"✅ **Low Diabetes Risk**")
-                    st.write(f"Probability: **{probability:.1%}**")
+                    st.success(risk_level)
+                    
+                st.write(f"**Probability:** {probability:.1%}")
+                st.write(risk_advice)
             
             with col2:
-                # Create probability gauge
+                # Create enhanced probability gauge
                 fig = go.Figure(go.Indicator(
                     mode = "gauge+number",
                     value = probability * 100,
@@ -363,9 +410,10 @@ def main():
                         'axis': {'range': [None, 100]},
                         'bar': {'color': "darkblue"},
                         'steps': [
-                            {'range': [0, 50], 'color': "lightgreen"},
-                            {'range': [50, 80], 'color': "yellow"},
-                            {'range': [80, 100], 'color': "red"}
+                            {'range': [0, 30], 'color': "lightgreen"},
+                            {'range': [30, 50], 'color': "yellow"},
+                            {'range': [50, 70], 'color': "orange"}, 
+                            {'range': [70, 100], 'color': "red"}
                         ],
                         'threshold': {
                             'line': {'color': "red", 'width': 4},
@@ -376,6 +424,30 @@ def main():
                 ))
                 fig.update_layout(height=300)
                 st.plotly_chart(fig, use_container_width=True)
+            
+            # Risk factor analysis
+            st.subheader("📊 Risk Factor Analysis")
+            risk_factors = []
+            
+            if glucose > 125:
+                risk_factors.append(f"🔸 High Glucose Level ({glucose}) - Normal: <100")
+            if bmi > 30:
+                risk_factors.append(f"🔸 High BMI ({bmi:.1f}) - Normal: 18.5-24.9")
+            if age > 45:
+                risk_factors.append(f"🔸 Advanced Age ({age}) - Risk increases after 45")
+            if blood_pressure > 80:
+                risk_factors.append(f"🔸 High Blood Pressure ({blood_pressure}) - Normal: <80")
+            if pregnancies > 4:
+                risk_factors.append(f"🔸 Multiple Pregnancies ({pregnancies}) - Higher risk")
+            if diabetes_pedigree > 0.5:
+                risk_factors.append(f"🔸 Strong Family History ({diabetes_pedigree:.2f})")
+                
+            if risk_factors:
+                st.warning("**Identified Risk Factors:**")
+                for factor in risk_factors:
+                    st.write(factor)
+            else:
+                st.success("✅ **No major risk factors identified in the input values.**")
             
             # Show input summary
             st.subheader("📋 Input Summary")
