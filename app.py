@@ -23,7 +23,7 @@ warnings.filterwarnings('ignore')
 
 # Set page config
 st.set_page_config(
-    page_title="🩺 Diabetes Predictor",
+    page_title="Diabetes Predictor",
     page_icon="🩺",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -291,8 +291,11 @@ def main():
         st.markdown("### Dataset Information")
         st.info(f"""
         **Total Samples:** {len(df)}
+        
         **Features:** {len(feature_columns)}
+        
         **Diabetic Cases:** {df['Outcome'].sum()} ({df['Outcome'].mean():.1%})
+        
         **Non-Diabetic Cases:** {len(df) - df['Outcome'].sum()} ({(1-df['Outcome'].mean()):.1%})
         """)
         
