@@ -217,7 +217,7 @@ def main():
     age = st.sidebar.slider('Age', 21, 81, 30, help='Age in years')
     
     # Prediction button
-    if st.sidebar.button('🔮 Predict Diabetes Risk', key='predict_btn'):
+    if st.sidebar.button('Predict Diabetes Risk', key='predict_btn'):
         # Prepare input data
         input_data = np.array([[pregnancies, glucose, blood_pressure, skin_thickness, 
                                insulin, bmi, diabetes_pedigree, age]])
@@ -231,7 +231,7 @@ def main():
             
         # Display result
         st.sidebar.markdown("---")
-        st.sidebar.markdown("### 🎯 Prediction Result")
+        st.sidebar.markdown("### Prediction Result")
         
         if prediction > 0.5:
             st.sidebar.markdown(f'<p class="high-risk">⚠️ High Risk of Diabetes</p>', unsafe_allow_html=True)
@@ -260,7 +260,7 @@ def main():
         st.plotly_chart(fig_pie, use_container_width=True)
         
         # Feature correlation heatmap
-        st.markdown("###Feature Correlation Heatmap")
+        st.markdown("### Feature Correlation Heatmap")
         correlation_matrix = df[feature_columns + ['Outcome']].corr()
         fig_heatmap = px.imshow(correlation_matrix, 
                                text_auto=True, 
@@ -288,7 +288,7 @@ def main():
         st.plotly_chart(fig_loss, use_container_width=True)
         
         # Dataset info
-        st.markdown("###Dataset Information")
+        st.markdown("### Dataset Information")
         st.info(f"""
         **Total Samples:** {len(df)}
         **Features:** {len(feature_columns)}
@@ -297,7 +297,7 @@ def main():
         """)
         
         # Feature importance (based on correlation with outcome)
-        st.markdown("###Feature Importance")
+        st.markdown("### Feature Importance")
         feature_importance = abs(df[feature_columns].corrwith(df['Outcome'])).sort_values(ascending=False)
         fig_importance = px.bar(x=feature_importance.values, 
                                y=feature_importance.index,
