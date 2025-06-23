@@ -14,6 +14,13 @@ import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings('ignore')
 
+
+
+
+
+
+
+
 # Set page config
 st.set_page_config(
     page_title="🩺 Diabetes Predictor",
@@ -21,6 +28,10 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+
+
+
 
 # Custom CSS for styling
 st.markdown("""
@@ -90,6 +101,18 @@ class DiabetesPredictor(nn.Module):
         x = self.sigmoid(self.fc4(x))
         return x
 
+
+
+
+
+
+
+
+
+
+
+
+
 # Cache the data loading and model training
 @st.cache_data
 def load_and_prepare_data():
@@ -110,6 +133,11 @@ def load_and_prepare_data():
     except Exception as e:
         st.error(f"❌ Error loading dataset: {str(e)}")
         st.stop()
+
+
+
+
+
 
 @st.cache_resource
 def train_model(X_train, y_train, X_test, y_test):
@@ -145,6 +173,12 @@ def train_model(X_train, y_train, X_test, y_test):
         accuracy = accuracy_score(y_test, test_predictions)
     
     return model, accuracy, losses
+
+
+
+
+
+
 
 def main():
     # Main header
@@ -305,6 +339,11 @@ def main():
             value=f"{avg_age_diabetic:.0f}",
             delta=f"{avg_age_diabetic - avg_age_non_diabetic:.0f} vs Non-Diabetic"
         )
+
+
+
+
+
     
     # Footer
     st.markdown("---")
@@ -314,6 +353,9 @@ def main():
         <p><em>Note: This tool is for educational purposes only. Please consult healthcare professionals for medical advice.</em></p>
     </div>
     """, unsafe_allow_html=True)
+
+
+
 
 if __name__ == "__main__":
     main()
