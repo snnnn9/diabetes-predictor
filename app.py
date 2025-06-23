@@ -17,23 +17,47 @@ st.set_page_config(
     layout="wide"
 )
 
-# Define the neural network model
+# Define the improved neural network model
 class DiabetesNet(nn.Module):
     def __init__(self, input_size=8):
         super(DiabetesNet, self).__init__()
-        self.fc1 = nn.Linear(input_size, 16)
-        self.fc2 = nn.Linear(16, 8)
-        self.fc3 = nn.Linear(8, 1)
+        # Deeper and wider network for better learning
+        self.fc1 = nn.Linear(input_size, 64)
+        self.fc2 = nn.Linear(64, 32)
+        self.fc3 = nn.Linear(32, 16)
+        self.fc4 = nn.Linear(16, 8)
+        self.fc5 = nn.Linear(8, 1)
+        
         self.relu = nn.ReLU()
-        self.dropout = nn.Dropout(0.2)
+        self.leaky_relu = nn.LeakyReLU(0.1)
+        self.dropout1 = nn.Dropout(0.3)
+        self.dropout2 = nn.Dropout(0.2)
+        self.batch_norm1 = nn.BatchNorm1d(64)
+        self.batch_norm2 = nn.BatchNorm1d(32)
         self.sigmoid = nn.Sigmoid()
     
     def forward(self, x):
-        x = self.relu(self.fc1(x))
-        x = self.dropout(x)
-        x = self.relu(self.fc2(x))
-        x = self.dropout(x)
-        x = self.sigmoid(self.fc3(x))
+        # First layer with batch norm
+        x = self.fc1(x)
+        x = self.batch_norm1(x)
+        x = self.leaky_relu(x)
+        x = self.dropout1(x)
+        
+        # Second layer with batch norm
+        x = self.fc2(x)
+        x = self.batch_norm2(x)
+        x = self.leaky_relu(x)
+        x = self.dropout2(x)
+        
+        # Third layer
+        x = self.leaky_relu(self.fc3(x))
+        x = self.dropout2(x)
+        
+        # Fourth layer
+        x = self.leaky_relu(self.fc4(x))
+        
+        # Output layer
+        x = self.sigmoid(self.fc5(x))
         return x
 
 @st.cache_data
@@ -42,70 +66,131 @@ def load_and_preprocess_data(uploaded_file):
     if uploaded_file is not None:
         df = pd.read_csv(uploaded_file)
     else:
-        # Create sample data if no file uploaded (for demo purposes)
+        # Create more realistic sample data with proper diabetes patterns
         np.random.seed(42)
-        n_samples = 500
-        df = pd.DataFrame({
-            'Pregnancies': np.random.randint(0, 15, n_samples),
-            'Glucose': np.random.normal(120, 30, n_samples),
-            'BloodPressure': np.random.normal(70, 15, n_samples),
-            'SkinThickness': np.random.normal(25, 10, n_samples),
-            'Insulin': np.random.normal(100, 50, n_samples),
-            'BMI': np.random.normal(28, 5, n_samples),
-            'DiabetesPedigreeFunction': np.random.uniform(0.1, 2.0, n_samples),
-            'Age': np.random.randint(21, 80, n_samples),
-            'Outcome': np.random.binomial(1, 0.35, n_samples)
-        })
-        # Ensure positive values where needed
-        df['Glucose'] = np.clip(df['Glucose'], 50, 200)
-        df['BloodPressure'] = np.clip(df['BloodPressure'], 40, 120)
-        df['SkinThickness'] = np.clip(df['SkinThickness'], 5, 50)
-        df['Insulin'] = np.clip(df['Insulin'], 10, 300)
-        df['BMI'] = np.clip(df['BMI'], 15, 50)
+        n_samples = 800
+        
+        # Create realistic diabetes patterns
+        # 65% non-diabetic, 35% diabetic (closer to real distribution)
+        outcomes = np.random.choice([0, 1], n_samples, p=[0.65, 0.35])
+        
+        df_list = []
+        for outcome in outcomes:
+            if outcome == 1:  # Diabetic - higher risk values
+                sample = {
+                    'Pregnancies': np.random.poisson(3),
+                    'Glucose': np.random.normal(145, 25),  # Higher glucose
+                    'BloodPressure': np.random.normal(75, 12),
+                    'SkinThickness': np.random.normal(28, 8),
+                    'Insulin': np.random.normal(150, 60),  # Higher insulin
+                    'BMI': np.random.normal(32, 6),  # Higher BMI
+                    'DiabetesPedigreeFunction': np.random.uniform(0.3, 1.8),
+                    'Age': np.random.normal(45, 15),  # Older age
+                    'Outcome': outcome
+                }
+            else:  # Non-diabetic - lower risk values
+                sample = {
+                    'Pregnancies': np.random.poisson(2),
+                    'Glucose': np.random.normal(105, 20),  # Normal glucose
+                    'BloodPressure': np.random.normal(68, 10),
+                    'SkinThickness': np.random.normal(22, 6),
+                    'Insulin': np.random.normal(80, 40),  # Normal insulin
+                    'BMI': np.random.normal(26, 4),  # Normal BMI
+                    'DiabetesPedigreeFunction': np.random.uniform(0.1, 0.8),
+                    'Age': np.random.normal(35, 12),  # Younger age
+                    'Outcome': outcome
+                }
+            df_list.append(sample)
+        
+        df = pd.DataFrame(df_list)
+        
+        # Ensure realistic ranges
+        df['Pregnancies'] = np.clip(df['Pregnancies'], 0, 15)
+        df['Glucose'] = np.clip(df['Glucose'], 50, 250)
+        df['BloodPressure'] = np.clip(df['BloodPressure'], 40, 130)
+        df['SkinThickness'] = np.clip(df['SkinThickness'], 5, 60)
+        df['Insulin'] = np.clip(df['Insulin'], 10, 400)
+        df['BMI'] = np.clip(df['BMI'], 15, 55)
+        df['Age'] = np.clip(df['Age'], 18, 85)
     
     return df
 
 @st.cache_resource
 def train_model(X_train, y_train, X_test, y_test):
-    """Train the PyTorch model"""
+    """Train the improved PyTorch model"""
     # Convert to tensors
     X_train_tensor = torch.FloatTensor(X_train)
     y_train_tensor = torch.FloatTensor(y_train).view(-1, 1)
     X_test_tensor = torch.FloatTensor(X_test)
     y_test_tensor = torch.FloatTensor(y_test).view(-1, 1)
     
-    # Initialize model
+    # Initialize improved model
     model = DiabetesNet()
-    criterion = nn.BCELoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
     
-    # Training loop
-    epochs = 100
+    # Use weighted loss to handle class imbalance
+    pos_weight = torch.tensor([len(y_train) / (2 * sum(y_train))])
+    criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+    
+    # Use different optimizers with scheduling
+    optimizer = optim.AdamW(model.parameters(), lr=0.001, weight_decay=0.01)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=20)
+    
+    # Training loop with more epochs
+    epochs = 300
     train_losses = []
+    val_losses = []
+    best_loss = float('inf')
+    patience_counter = 0
     
     progress_bar = st.progress(0)
     status_text = st.empty()
     
     for epoch in range(epochs):
+        # Training phase
         model.train()
         optimizer.zero_grad()
         
-        # Forward pass
+        # Forward pass - remove sigmoid from model output for BCEWithLogitsLoss
         outputs = model(X_train_tensor)
-        loss = criterion(outputs, y_train_tensor)
+        # Remove sigmoid and use raw logits
+        raw_outputs = torch.log(outputs / (1 - outputs + 1e-8))  # Convert sigmoid to logits
+        loss = criterion(raw_outputs, y_train_tensor)
         
         # Backward pass
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)  # Gradient clipping
         optimizer.step()
         
         train_losses.append(loss.item())
         
+        # Validation phase
+        model.eval()
+        with torch.no_grad():
+            val_outputs = model(X_test_tensor)
+            val_raw_outputs = torch.log(val_outputs / (1 - val_outputs + 1e-8))
+            val_loss = criterion(val_raw_outputs, y_test_tensor)
+            val_losses.append(val_loss.item())
+        
+        # Learning rate scheduling
+        scheduler.step(val_loss)
+        
+        # Early stopping
+        if val_loss < best_loss:
+            best_loss = val_loss
+            patience_counter = 0
+        else:
+            patience_counter += 1
+            
+        if patience_counter >= 50:  # Early stopping
+            st.info(f"Early stopping at epoch {epoch+1}")
+            break
+        
         # Update progress
         progress = (epoch + 1) / epochs
         progress_bar.progress(progress)
-        status_text.text(f'Training... Epoch {epoch+1}/{epochs}, Loss: {loss.item():.4f}')
+        status_text.text(f'Training... Epoch {epoch+1}/{epochs}, Loss: {loss.item():.4f}, Val Loss: {val_loss.item():.4f}')
     
-    # Evaluate model
+    # Final evaluation
     model.eval()
     with torch.no_grad():
         train_pred = model(X_train_tensor)
@@ -120,7 +205,7 @@ def train_model(X_train, y_train, X_test, y_test):
     progress_bar.empty()
     status_text.empty()
     
-    return model, train_losses, train_acc, test_acc
+    return model, train_losses, val_losses, train_acc, test_acc
 
 def main():
     st.title("🩺 Diabetes Predictor")
