@@ -247,11 +247,11 @@ def main():
         st.markdown('<h2 class="sub-header">Dataset Overview</h2>', unsafe_allow_html=True)
         
         # Display basic statistics
-        st.markdown("###Dataset Statistics")
+        st.markdown("###  Dataset Statistics")
         st.dataframe(df.describe(), use_container_width=True)
         
         # Outcome distribution
-        st.markdown("###Diabetes Distribution")
+        st.markdown("###  Diabetes Distribution")
         outcome_counts = df['Outcome'].value_counts()
         fig_pie = px.pie(values=outcome_counts.values, 
                         names=['Non-Diabetic', 'Diabetic'],
@@ -260,7 +260,7 @@ def main():
         st.plotly_chart(fig_pie, use_container_width=True)
         
         # Feature correlation heatmap
-        st.markdown("### Feature Correlation Heatmap")
+        st.markdown("###  Feature Correlation Heatmap")
         correlation_matrix = df[feature_columns + ['Outcome']].corr()
         fig_heatmap = px.imshow(correlation_matrix, 
                                text_auto=True, 
@@ -280,7 +280,7 @@ def main():
         )
         
         # Training loss chart
-        st.markdown("###Training Loss")
+        st.markdown("###  Training Loss")
         loss_df = pd.DataFrame({'Epoch': range(len(losses)), 'Loss': losses})
         fig_loss = px.line(loss_df, x='Epoch', y='Loss', 
                           title='Model Training Loss Over Time',
