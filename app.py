@@ -9,11 +9,12 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score, classification_report
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
+import seaborn as sns
+import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings('ignore')
 
-# Set page configuration
+# Set page config
 st.set_page_config(
     page_title="🩺 Diabetes Predictor",
     page_icon="🩺",
@@ -21,62 +22,57 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for better styling
+# Custom CSS for styling
 st.markdown("""
 <style>
     .main-header {
         font-size: 3rem;
-        font-weight: bold;
+        color: #2E86AB;
         text-align: center;
-        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
         margin-bottom: 2rem;
+        font-weight: bold;
     }
-    
-    .prediction-box {
-        padding: 1.5rem;
+    .sub-header {
+        font-size: 1.5rem;
+        color: #A23B72;
+        margin-bottom: 1rem;
+    }
+    .metric-container {
+        background-color: #f0f2f6;
+        padding: 1rem;
         border-radius: 10px;
-        text-align: center;
-        font-size: 1.2rem;
-        font-weight: bold;
-        margin: 1rem 0;
+        margin: 0.5rem 0;
     }
-    
-    .high-risk {
-        background-color: #ffebee;
-        border: 2px solid #f44336;
-        color: #c62828;
-    }
-    
-    .low-risk {
-        background-color: #e8f5e8;
-        border: 2px solid #4caf50;
-        color: #2e7d32;
-    }
-    
-    .stButton > button {
-        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    .predict-button {
+        background-color: #2E86AB;
         color: white;
-        border: none;
-        border-radius: 20px;
-        padding: 0.5rem 2rem;
         font-weight: bold;
-        transition: transform 0.2s;
+        border-radius: 5px;
+        padding: 0.5rem 1rem;
+        border: none;
+        cursor: pointer;
+        transition: background-color 0.3s;
     }
-    
-    .stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 5px 10px rgba(0,0,0,0.2);
+    .predict-button:hover {
+        background-color: #1B5E7D;
+    }
+    .high-risk {
+        color: #E63946;
+        font-weight: bold;
+        font-size: 1.2rem;
+    }
+    .low-risk {
+        color: #2A9D8F;
+        font-weight: bold;
+        font-size: 1.2rem;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Neural Network Model Definition
+# Define the neural network model
 class DiabetesPredictor(nn.Module):
     def __init__(self, input_size=8):
         super(DiabetesPredictor, self).__init__()
-        # Define network layers
         self.fc1 = nn.Linear(input_size, 64)
         self.fc2 = nn.Linear(64, 32)
         self.fc3 = nn.Linear(32, 16)
@@ -84,288 +80,238 @@ class DiabetesPredictor(nn.Module):
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(0.2)
         self.sigmoid = nn.Sigmoid()
-    
+        
     def forward(self, x):
-        # Forward pass through the network
         x = self.relu(self.fc1(x))
         x = self.dropout(x)
         x = self.relu(self.fc2(x))
         x = self.dropout(x)
         x = self.relu(self.fc3(x))
-        x = self.dropout(x)
         x = self.sigmoid(self.fc4(x))
         return x
 
+# Cache the data loading and model training
 @st.cache_data
-def load_and_preprocess_data():
-    """Load and preprocess the diabetes dataset"""
+def load_and_prepare_data():
+    """Load and prepare the diabetes dataset"""
     try:
         # Load the dataset
         df = pd.read_csv('diabetes.csv')
         
-        # Feature columns
-        feature_columns = ['Pregnancies', 'Glucose', 'BloodPressure', 'SkinThickness', 
-                          'Insulin', 'BMI', 'DiabetesPedigreeFunction', 'Age']
+        # Basic data cleaning - replace 0s with median for certain columns
+        columns_to_replace = ['Glucose', 'BloodPressure', 'SkinThickness', 'Insulin', 'BMI']
+        for col in columns_to_replace:
+            df[col] = df[col].replace(0, df[col].median())
         
-        # Separate features and target
-        X = df[feature_columns].values
-        y = df['Outcome'].values
-        
-        # Split the data
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.2, random_state=42, stratify=y
-        )
-        
-        # Scale the features
-        scaler = StandardScaler()
-        X_train_scaled = scaler.fit_transform(X_train)
-        X_test_scaled = scaler.transform(X_test)
-        
-        return df, X_train_scaled, X_test_scaled, y_train, y_test, scaler, feature_columns
-        
+        return df
     except FileNotFoundError:
-        st.error("⚠️ diabetes.csv file not found! Please ensure the file is in the same directory as this app.")
-        return None, None, None, None, None, None, None
+        st.error("❌ Dataset file 'diabetes.csv' not found. Please ensure it's in the same directory as this script.")
+        st.stop()
+    except Exception as e:
+        st.error(f"❌ Error loading dataset: {str(e)}")
+        st.stop()
 
 @st.cache_resource
 def train_model(X_train, y_train, X_test, y_test):
     """Train the PyTorch model"""
+    # Initialize the model
+    model = DiabetesPredictor()
+    criterion = nn.BCELoss()
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    
     # Convert to PyTorch tensors
     X_train_tensor = torch.FloatTensor(X_train)
     y_train_tensor = torch.FloatTensor(y_train).reshape(-1, 1)
     X_test_tensor = torch.FloatTensor(X_test)
     y_test_tensor = torch.FloatTensor(y_test).reshape(-1, 1)
     
-    # Initialize the model
-    model = DiabetesPredictor()
-    criterion = nn.BCELoss()  # Binary Cross Entropy Loss
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
-    
     # Training loop
     model.train()
-    epochs = 1000
-    for epoch in range(epochs):
-        # Forward pass
+    losses = []
+    
+    for epoch in range(500):
+        optimizer.zero_grad()
         outputs = model(X_train_tensor)
         loss = criterion(outputs, y_train_tensor)
-        
-        # Backward pass
-        optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        losses.append(loss.item())
     
     # Evaluate the model
     model.eval()
     with torch.no_grad():
-        train_predictions = model(X_train_tensor)
-        test_predictions = model(X_test_tensor)
-        
-        # Convert to binary predictions
-        train_pred_binary = (train_predictions > 0.5).float()
-        test_pred_binary = (test_predictions > 0.5).float()
-        
-        # Calculate accuracy
-        train_accuracy = accuracy_score(y_train, train_pred_binary.numpy())
-        test_accuracy = accuracy_score(y_test, test_pred_binary.numpy())
+        test_outputs = model(X_test_tensor)
+        test_predictions = (test_outputs.numpy() > 0.5).astype(int)
+        accuracy = accuracy_score(y_test, test_predictions)
     
-    return model, train_accuracy, test_accuracy
-
-def make_prediction(model, scaler, user_input):
-    """Make a prediction using the trained model"""
-    # Scale the input
-    user_input_scaled = scaler.transform([user_input])
-    
-    # Convert to tensor
-    input_tensor = torch.FloatTensor(user_input_scaled)
-    
-    # Make prediction
-    model.eval()
-    with torch.no_grad():
-        prediction = model(input_tensor)
-        probability = prediction.item()
-    
-    return probability
-
-def create_feature_distributions(df):
-    """Create visualizations of feature distributions"""
-    # Create subplots
-    fig = make_subplots(
-        rows=2, cols=4,
-        subplot_titles=['Pregnancies', 'Glucose', 'Blood Pressure', 'Skin Thickness',
-                       'Insulin', 'BMI', 'Diabetes Pedigree', 'Age'],
-        specs=[[{"secondary_y": False}]*4]*2
-    )
-    
-    features = ['Pregnancies', 'Glucose', 'BloodPressure', 'SkinThickness', 
-               'Insulin', 'BMI', 'DiabetesPedigreeFunction', 'Age']
-    
-    positions = [(1,1), (1,2), (1,3), (1,4), (2,1), (2,2), (2,3), (2,4)]
-    
-    for i, (feature, pos) in enumerate(zip(features, positions)):
-        # Separate data by outcome
-        diabetic = df[df['Outcome'] == 1][feature]
-        non_diabetic = df[df['Outcome'] == 0][feature]
-        
-        # Add histograms
-        fig.add_trace(
-            go.Histogram(x=non_diabetic, name='Non-Diabetic', opacity=0.7, 
-                        marker_color='lightblue', showlegend=(i==0)),
-            row=pos[0], col=pos[1]
-        )
-        fig.add_trace(
-            go.Histogram(x=diabetic, name='Diabetic', opacity=0.7, 
-                        marker_color='lightcoral', showlegend=(i==0)),
-            row=pos[0], col=pos[1]
-        )
-    
-    fig.update_layout(height=600, title_text="Feature Distributions by Diabetes Outcome")
-    return fig
+    return model, accuracy, losses
 
 def main():
-    # Header
+    # Main header
     st.markdown('<h1 class="main-header">🩺 Diabetes Predictor</h1>', unsafe_allow_html=True)
-    st.markdown("### AI-Powered Diabetes Risk Assessment using Deep Learning")
+    st.markdown('<p style="text-align: center; font-size: 1.2rem; color: #666;">Predict diabetes risk using advanced deep learning</p>', unsafe_allow_html=True)
     
-    # Load and preprocess data
-    data = load_and_preprocess_data()
-    if data[0] is None:
-        return
+    # Load and prepare data
+    df = load_and_prepare_data()
     
-    df, X_train, X_test, y_train, y_test, scaler, feature_columns = data
+    # Prepare features and target
+    feature_columns = ['Pregnancies', 'Glucose', 'BloodPressure', 'SkinThickness', 
+                      'Insulin', 'BMI', 'DiabetesPedigreeFunction', 'Age']
+    X = df[feature_columns]
+    y = df['Outcome']
     
-    # Train model
-    with st.spinner("🧠 Training the AI model... This may take a moment."):
-        model, train_acc, test_acc = train_model(X_train, y_train, X_test, y_test)
+    # Split and scale the data
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+    
+    # Train the model
+    model, accuracy, losses = train_model(X_train_scaled, y_train.values, X_test_scaled, y_test.values)
     
     # Sidebar for user input
-    st.sidebar.header("📋 Patient Information")
-    st.sidebar.markdown("Please enter the patient's medical information:")
+    st.sidebar.markdown('<h2 class="sub-header">📊 Enter Your Information</h2>', unsafe_allow_html=True)
     
-    # User input form
-    with st.sidebar.form("prediction_form"):
-        pregnancies = st.number_input("👶 Number of Pregnancies", min_value=0, max_value=20, value=1, step=1)
-        glucose = st.number_input("🍯 Glucose Level (mg/dL)", min_value=0, max_value=300, value=120, step=1)
-        blood_pressure = st.number_input("💓 Blood Pressure (mmHg)", min_value=0, max_value=200, value=80, step=1)
-        skin_thickness = st.number_input("📏 Skin Thickness (mm)", min_value=0, max_value=100, value=20, step=1)
-        insulin = st.number_input("💉 Insulin Level (μU/mL)", min_value=0, max_value=900, value=80, step=1)
-        bmi = st.number_input("⚖️ BMI (Body Mass Index)", min_value=0.0, max_value=70.0, value=25.0, step=0.1)
-        diabetes_pedigree = st.number_input("🧬 Diabetes Pedigree Function", min_value=0.0, max_value=3.0, value=0.5, step=0.01)
-        age = st.number_input("🎂 Age (years)", min_value=1, max_value=120, value=30, step=1)
+    # Input fields
+    pregnancies = st.sidebar.slider('Pregnancies', 0, 17, 1, help='Number of times pregnant')
+    glucose = st.sidebar.slider('Glucose Level', 0, 200, 120, help='Plasma glucose concentration')
+    blood_pressure = st.sidebar.slider('Blood Pressure', 0, 122, 70, help='Diastolic blood pressure (mm Hg)')
+    skin_thickness = st.sidebar.slider('Skin Thickness', 0, 99, 20, help='Triceps skin fold thickness (mm)')
+    insulin = st.sidebar.slider('Insulin', 0, 846, 79, help='2-Hour serum insulin (mu U/ml)')
+    bmi = st.sidebar.slider('BMI', 0.0, 67.1, 25.0, step=0.1, help='Body mass index (weight in kg/(height in m)^2)')
+    diabetes_pedigree = st.sidebar.slider('Diabetes Pedigree Function', 0.0, 2.5, 0.5, step=0.01, help='Diabetes pedigree function')
+    age = st.sidebar.slider('Age', 21, 81, 30, help='Age in years')
+    
+    # Prediction button
+    if st.sidebar.button('🔮 Predict Diabetes Risk', key='predict_btn'):
+        # Prepare input data
+        input_data = np.array([[pregnancies, glucose, blood_pressure, skin_thickness, 
+                               insulin, bmi, diabetes_pedigree, age]])
+        input_scaled = scaler.transform(input_data)
         
-        predict_button = st.form_submit_button("🔮 Predict Diabetes Risk")
+        # Make prediction
+        model.eval()
+        with torch.no_grad():
+            input_tensor = torch.FloatTensor(input_scaled)
+            prediction = model(input_tensor).item()
+            
+        # Display result
+        st.sidebar.markdown("---")
+        st.sidebar.markdown("### 🎯 Prediction Result")
+        
+        if prediction > 0.5:
+            st.sidebar.markdown(f'<p class="high-risk">⚠️ High Risk of Diabetes</p>', unsafe_allow_html=True)
+            st.sidebar.markdown(f"**Confidence:** {prediction:.2%}")
+        else:
+            st.sidebar.markdown(f'<p class="low-risk">✅ Low Risk of Diabetes</p>', unsafe_allow_html=True)
+            st.sidebar.markdown(f"**Confidence:** {(1-prediction):.2%}")
     
     # Main content area
     col1, col2 = st.columns([2, 1])
     
     with col1:
-        # Dataset overview
-        st.subheader("📊 Dataset Overview")
+        st.markdown('<h2 class="sub-header">📈 Dataset Overview</h2>', unsafe_allow_html=True)
         
-        # Basic statistics
-        col_a, col_b, col_c, col_d = st.columns(4)
-        with col_a:
-            st.metric("Total Samples", len(df))
-        with col_b:
-            st.metric("Diabetic Cases", df['Outcome'].sum())
-        with col_c:
-            st.metric("Non-Diabetic Cases", len(df) - df['Outcome'].sum())
-        with col_d:
-            st.metric("Diabetes Rate", f"{(df['Outcome'].mean()*100):.1f}%")
+        # Display basic statistics
+        st.markdown("### 📊 Dataset Statistics")
+        st.dataframe(df.describe(), use_container_width=True)
         
-        # Feature distributions
-        st.subheader("📈 Feature Distributions")
-        distribution_fig = create_feature_distributions(df)
-        st.plotly_chart(distribution_fig, use_container_width=True)
+        # Outcome distribution
+        st.markdown("### 🎯 Diabetes Distribution")
+        outcome_counts = df['Outcome'].value_counts()
+        fig_pie = px.pie(values=outcome_counts.values, 
+                        names=['Non-Diabetic', 'Diabetic'],
+                        title='Distribution of Diabetes Cases',
+                        color_discrete_sequence=['#2A9D8F', '#E63946'])
+        st.plotly_chart(fig_pie, use_container_width=True)
         
-        # Model performance
-        st.subheader("🎯 Model Performance")
-        perf_col1, perf_col2 = st.columns(2)
-        with perf_col1:
-            st.metric("Training Accuracy", f"{train_acc:.3f}")
-        with perf_col2:
-            st.metric("Testing Accuracy", f"{test_acc:.3f}")
+        # Feature correlation heatmap
+        st.markdown("### 🔥 Feature Correlation Heatmap")
+        correlation_matrix = df[feature_columns + ['Outcome']].corr()
+        fig_heatmap = px.imshow(correlation_matrix, 
+                               text_auto=True, 
+                               aspect="auto",
+                               color_continuous_scale='RdBu',
+                               title='Feature Correlation Matrix')
+        st.plotly_chart(fig_heatmap, use_container_width=True)
     
     with col2:
-        st.subheader("🔍 Prediction Results")
+        st.markdown('<h2 class="sub-header">🤖 Model Performance</h2>', unsafe_allow_html=True)
         
-        if predict_button:
-            # Prepare user input
-            user_input = [pregnancies, glucose, blood_pressure, skin_thickness, 
-                         insulin, bmi, diabetes_pedigree, age]
-            
-            # Make prediction
-            probability = make_prediction(model, scaler, user_input)
-            
-            # Display results
-            if probability > 0.5:
-                st.markdown(f'''
-                <div class="prediction-box high-risk">
-                    ⚠️ HIGH RISK<br>
-                    Probability: {probability:.1%}
-                </div>
-                ''', unsafe_allow_html=True)
-                st.warning("⚠️ **Recommendation:** Please consult with a healthcare professional for further evaluation and testing.")
-            else:
-                st.markdown(f'''
-                <div class="prediction-box low-risk">
-                    ✅ LOW RISK<br>
-                    Probability: {probability:.1%}
-                </div>
-                ''', unsafe_allow_html=True)
-                st.success("✅ **Good news!** The model indicates a low risk of diabetes. Continue maintaining a healthy lifestyle.")
-            
-            # Risk factors analysis
-            st.subheader("📋 Risk Factors Analysis")
-            
-            # Define normal ranges (simplified)
-            risk_factors = []
-            if glucose > 140:
-                risk_factors.append("High glucose level")
-            if blood_pressure > 90:
-                risk_factors.append("High blood pressure")
-            if bmi > 30:
-                risk_factors.append("High BMI (obesity)")
-            if age > 45:
-                risk_factors.append("Advanced age")
-            
-            if risk_factors:
-                st.warning("⚠️ **Identified Risk Factors:**")
-                for factor in risk_factors:
-                    st.write(f"• {factor}")
-            else:
-                st.success("✅ No major risk factors identified.")
+        # Model accuracy
+        st.metric(
+            label="Model Accuracy",
+            value=f"{accuracy:.2%}",
+            delta="High Performance"
+        )
         
-        else:
-            st.info("👈 Please fill in the patient information in the sidebar and click 'Predict' to get the diabetes risk assessment.")
+        # Training loss chart
+        st.markdown("### 📉 Training Loss")
+        loss_df = pd.DataFrame({'Epoch': range(len(losses)), 'Loss': losses})
+        fig_loss = px.line(loss_df, x='Epoch', y='Loss', 
+                          title='Model Training Loss Over Time',
+                          color_discrete_sequence=['#2E86AB'])
+        st.plotly_chart(fig_loss, use_container_width=True)
         
-        # Educational content
-        st.subheader("📚 About Diabetes")
-        st.markdown("""
-        **Type 2 Diabetes** is a chronic condition that affects how your body processes blood sugar (glucose).
-        
-        **Key Risk Factors:**
-        - Age (45+ years)
-        - Obesity (BMI > 30)
-        - Family history
-        - High blood pressure
-        - High glucose levels
-        
-        **Prevention Tips:**
-        - Maintain healthy weight
-        - Exercise regularly
-        - Eat a balanced diet
-        - Monitor blood sugar
-        - Regular check-ups
+        # Dataset info
+        st.markdown("### 📋 Dataset Information")
+        st.info(f"""
+        **Total Samples:** {len(df)}
+        **Features:** {len(feature_columns)}
+        **Diabetic Cases:** {df['Outcome'].sum()} ({df['Outcome'].mean():.1%})
+        **Non-Diabetic Cases:** {len(df) - df['Outcome'].sum()} ({(1-df['Outcome'].mean()):.1%})
         """)
+        
+        # Feature importance (based on correlation with outcome)
+        st.markdown("### 🎯 Feature Importance")
+        feature_importance = abs(df[feature_columns].corrwith(df['Outcome'])).sort_values(ascending=False)
+        fig_importance = px.bar(x=feature_importance.values, 
+                               y=feature_importance.index,
+                               orientation='h',
+                               title='Feature Importance (Correlation with Outcome)',
+                               color_discrete_sequence=['#A23B72'])
+        fig_importance.update_layout(height=400)
+        st.plotly_chart(fig_importance, use_container_width=True)
+    
+    # Additional insights
+    st.markdown("---")
+    st.markdown('<h2 class="sub-header">💡 Key Insights</h2>', unsafe_allow_html=True)
+    
+    col3, col4, col5 = st.columns(3)
+    
+    with col3:
+        avg_glucose_diabetic = df[df['Outcome'] == 1]['Glucose'].mean()
+        avg_glucose_non_diabetic = df[df['Outcome'] == 0]['Glucose'].mean()
+        st.metric(
+            label="Avg Glucose (Diabetic)",
+            value=f"{avg_glucose_diabetic:.0f}",
+            delta=f"{avg_glucose_diabetic - avg_glucose_non_diabetic:.0f} vs Non-Diabetic"
+        )
+    
+    with col4:
+        avg_bmi_diabetic = df[df['Outcome'] == 1]['BMI'].mean()
+        avg_bmi_non_diabetic = df[df['Outcome'] == 0]['BMI'].mean()
+        st.metric(
+            label="Avg BMI (Diabetic)",
+            value=f"{avg_bmi_diabetic:.1f}",
+            delta=f"{avg_bmi_diabetic - avg_bmi_non_diabetic:.1f} vs Non-Diabetic"
+        )
+    
+    with col5:
+        avg_age_diabetic = df[df['Outcome'] == 1]['Age'].mean()
+        avg_age_non_diabetic = df[df['Outcome'] == 0]['Age'].mean()
+        st.metric(
+            label="Avg Age (Diabetic)",
+            value=f"{avg_age_diabetic:.0f}",
+            delta=f"{avg_age_diabetic - avg_age_non_diabetic:.0f} vs Non-Diabetic"
+        )
     
     # Footer
     st.markdown("---")
     st.markdown("""
-    <div style='text-align: center; color: #666; padding: 1rem;'>
-        <small>
-        ⚠️ <strong>Disclaimer:</strong> This tool is for educational purposes only and should not replace professional medical advice. 
-        Always consult with a healthcare provider for accurate diagnosis and treatment.
-        </small>
+    <div style='text-align: center; color: #666; padding: 2rem;'>
+        <p>🩺 <strong>Diabetes Predictor</strong> - Powered by PyTorch & Streamlit</p>
+        <p><em>Note: This tool is for educational purposes only. Please consult healthcare professionals for medical advice.</em></p>
     </div>
     """, unsafe_allow_html=True)
 
