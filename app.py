@@ -539,10 +539,7 @@ def main():
                                     nbins=20,
                                     color_discrete_map={0: '#26A69A', 1: '#FF5252'})
         fig_confidence.update_layout(height=300)
-        st.plotly_chart(fig_confidence, use_container_width=True) Accuracy",
-            value=f"{accuracy:.2%}",
-            delta="High Performance"
-        )
+
         
         # Training loss chart
         st.markdown("### 📉 Training Loss")
