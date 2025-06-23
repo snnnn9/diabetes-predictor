@@ -170,7 +170,7 @@ def main():
     model, accuracy, losses = train_model(X_train_scaled, y_train.values, X_test_scaled, y_test.values)
     
     # Sidebar for user input
-    st.sidebar.markdown('<h2 class="sub-header">📊 Enter Your Information</h2>', unsafe_allow_html=True)
+    st.sidebar.markdown('<h2 class="sub-header">Enter Your Information</h2>', unsafe_allow_html=True)
     
     # Input fields
     pregnancies = st.sidebar.slider('Pregnancies', 0, 17, 1, help='Number of times pregnant')
@@ -213,11 +213,11 @@ def main():
         st.markdown('<h2 class="sub-header">📈 Dataset Overview</h2>', unsafe_allow_html=True)
         
         # Display basic statistics
-        st.markdown("### 📊 Dataset Statistics")
+        st.markdown("###Dataset Statistics")
         st.dataframe(df.describe(), use_container_width=True)
         
         # Outcome distribution
-        st.markdown("### 🎯 Diabetes Distribution")
+        st.markdown("###Diabetes Distribution")
         outcome_counts = df['Outcome'].value_counts()
         fig_pie = px.pie(values=outcome_counts.values, 
                         names=['Non-Diabetic', 'Diabetic'],
@@ -226,7 +226,7 @@ def main():
         st.plotly_chart(fig_pie, use_container_width=True)
         
         # Feature correlation heatmap
-        st.markdown("### 🔥 Feature Correlation Heatmap")
+        st.markdown("###Feature Correlation Heatmap")
         correlation_matrix = df[feature_columns + ['Outcome']].corr()
         fig_heatmap = px.imshow(correlation_matrix, 
                                text_auto=True, 
@@ -236,7 +236,7 @@ def main():
         st.plotly_chart(fig_heatmap, use_container_width=True)
     
     with col2:
-        st.markdown('<h2 class="sub-header">🤖 Model Performance</h2>', unsafe_allow_html=True)
+        st.markdown('<h2 class="sub-header">Model Performance</h2>', unsafe_allow_html=True)
         
         # Model accuracy
         st.metric(
@@ -246,7 +246,7 @@ def main():
         )
         
         # Training loss chart
-        st.markdown("### 📉 Training Loss")
+        st.markdown("###Training Loss")
         loss_df = pd.DataFrame({'Epoch': range(len(losses)), 'Loss': losses})
         fig_loss = px.line(loss_df, x='Epoch', y='Loss', 
                           title='Model Training Loss Over Time',
@@ -254,7 +254,7 @@ def main():
         st.plotly_chart(fig_loss, use_container_width=True)
         
         # Dataset info
-        st.markdown("### 📋 Dataset Information")
+        st.markdown("###Dataset Information")
         st.info(f"""
         **Total Samples:** {len(df)}
         **Features:** {len(feature_columns)}
@@ -263,7 +263,7 @@ def main():
         """)
         
         # Feature importance (based on correlation with outcome)
-        st.markdown("### 🎯 Feature Importance")
+        st.markdown("###Feature Importance")
         feature_importance = abs(df[feature_columns].corrwith(df['Outcome'])).sort_values(ascending=False)
         fig_importance = px.bar(x=feature_importance.values, 
                                y=feature_importance.index,
@@ -275,7 +275,7 @@ def main():
     
     # Additional insights
     st.markdown("---")
-    st.markdown('<h2 class="sub-header">💡 Key Insights</h2>', unsafe_allow_html=True)
+    st.markdown('<h2 class="sub-header">Key Insights</h2>', unsafe_allow_html=True)
     
     col3, col4, col5 = st.columns(3)
     
@@ -310,7 +310,7 @@ def main():
     st.markdown("---")
     st.markdown("""
     <div style='text-align: center; color: #666; padding: 2rem;'>
-        <p>🩺 <strong>Diabetes Predictor</strong> - Powered by PyTorch & Streamlit</p>
+        <p>Rexzea<strong>Diabetes Predictor</strong> - Powered by PyTorch & Streamlit</p>
         <p><em>Note: This tool is for educational purposes only. Please consult healthcare professionals for medical advice.</em></p>
     </div>
     """, unsafe_allow_html=True)
