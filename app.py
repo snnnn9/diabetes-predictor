@@ -297,7 +297,7 @@ def main():
         """)
         
         # Feature importance (based on correlation with outcome)
-        st.markdown("### Feature Importance")
+        st.markdown("###  Feature Importance")
         feature_importance = abs(df[feature_columns].corrwith(df['Outcome'])).sort_values(ascending=False)
         fig_importance = px.bar(x=feature_importance.values, 
                                y=feature_importance.index,
