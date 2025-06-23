@@ -210,7 +210,7 @@ def main():
     col1, col2 = st.columns([2, 1])
     
     with col1:
-        st.markdown('<h2 class="sub-header">📈 Dataset Overview</h2>', unsafe_allow_html=True)
+        st.markdown('<h2 class="sub-header">Dataset Overview</h2>', unsafe_allow_html=True)
         
         # Display basic statistics
         st.markdown("###Dataset Statistics")
@@ -310,7 +310,7 @@ def main():
     st.markdown("---")
     st.markdown("""
     <div style='text-align: center; color: #666; padding: 2rem;'>
-        <p>Rexzea<strong>Diabetes Predictor</strong> - Powered by PyTorch & Streamlit</p>
+        <p>Rexzea - <strong>Diabetes Predictor</strong> - Powered by PyTorch & Streamlit</p>
         <p><em>Note: This tool is for educational purposes only. Please consult healthcare professionals for medical advice.</em></p>
     </div>
     """, unsafe_allow_html=True)
