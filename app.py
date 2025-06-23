@@ -247,7 +247,7 @@ def main():
         st.markdown('<h2 class="sub-header">Dataset Overview</h2>', unsafe_allow_html=True)
         
         # Display basic statistics
-        st.markdown("###  Dataset Statistics")
+        st.markdown("### Dataset Statistics")
         st.dataframe(df.describe(), use_container_width=True)
         
         # Outcome distribution
