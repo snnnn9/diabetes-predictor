@@ -16,7 +16,7 @@ warnings.filterwarnings('ignore')
 
 # Set page config
 st.set_page_config(
-    page_title="🩺 Diabetes Predictor",
+    page_title="Diabetes Predictor",
     page_icon="🩺",
     layout="wide",
     initial_sidebar_state="expanded"
